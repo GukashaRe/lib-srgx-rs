@@ -11,12 +11,16 @@ env:
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v4
-    - name: Build
-      run: cargo build --verbose
-    - name: Run tests
-      run: cargo test --verbose
+      - uses: actions/checkout@v4
+
+      - name: Build
+        run: cargo build --verbose
+
+      - name: Run tests
+        env:
+          SRGX_TEST_TOKEN: ${{ secrets.SRGX_TEST_TOKEN }}
+          SRGX_TEST_CODE: ${{ secrets.SRGX_TEST_CODE }}
+        run: cargo test --verbose
