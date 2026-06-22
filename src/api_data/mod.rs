@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 /// # 示例
 /// ```
 /// use serde_json;
-/// # use your_crate::QuerySuccessResponse;
+/// use lib_srgx_rs::api_data::QuerySuccessResponse;
 ///
 /// let json = r#"{"success":true,"name":"张某某","schoolName":"某大学","major":"园艺","degreeLevel":"本科","elapsed":602,"nodeId":"node_1"}"#;
 /// let resp: QuerySuccessResponse = serde_json::from_str(json).unwrap();
@@ -41,7 +41,7 @@ pub struct QuerySuccessResponse {
 /// # 示例
 /// ```
 /// use serde_json;
-/// # use your_crate::QueryErrorResponse;
+/// use lib_srgx_rs::api_data::QueryErrorResponse;
 ///
 /// let json = r#"{"success":false,"message":"报告已过期","elapsed":300}"#;
 /// let resp: QueryErrorResponse = serde_json::from_str(json).unwrap();
@@ -64,7 +64,7 @@ pub struct QueryErrorResponse {
 /// # 示例
 /// ```
 /// use serde_json;
-/// # use your_crate::{QueryResponse, QuerySuccessResponse};
+/// use lib_srgx_rs::api_data::{QueryResponse, QuerySuccessResponse};
 ///
 /// let json = r#"{"success":true,"name":"张某某","schoolName":"某大学","major":"园艺","degreeLevel":"本科","elapsed":602,"nodeId":"node_1"}"#;
 /// let resp: QueryResponse = serde_json::from_str(json).unwrap();
@@ -170,7 +170,8 @@ impl QueryResponse {
 ///
 /// # 示例
 /// ```
-/// # use your_crate::QueryRequest;
+/// use lib_srgx_rs::api_data::QueryRequest;
+///
 /// let request = QueryRequest {
 ///     code: "ABCD1234EFGH5678".to_string(),
 ///     api_key: "sk_chsi_xxx".to_string(),
