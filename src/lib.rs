@@ -41,7 +41,7 @@ impl SrgxImpl {
     /// # example
     /// ```
     /// use lib_srgx_rs::SrgxImpl;
-    /// let requester = SrgxImpl::new("this_is_a_api_token","this_is_a_key");
+    /// let requester = SrgxImpl::new("this_is_a_api_token".to_string(),"this_is_a_key".to_string());
     /// requester.send_request::<SomeDeserializeedStruct>("/api/query",None);
     /// ```
     pub async fn send_request<T: DeserializeOwned>(
