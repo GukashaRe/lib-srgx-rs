@@ -31,42 +31,42 @@ impl SrgxImpl {
 
     /// 统一请求方法：处理所有公共逻辑
     ///
-    /// # 参数
-    /// - `endpoint`: API路径，如 "/api/query"
-    /// - `params`: 额外的URL参数（可选）
-    ///
-    /// # 返回
-    /// - `Ok(T)`: 成功反序列化的数据
-    /// - `Err(anyhow::Error)`: HTTP错误、业务错误、解析错误
-    /// # example
+    /// # 示例
     /// ```
     /// use lib_srgx_rs::SrgxImpl;
-    /// let requester = SrgxImpl::new("this_is_a_api_token".to_string(),"this_is_a_key".to_string());
+    ///
+    /// # #[tokio::main]
+    /// # async fn main() -> anyhow::Result<()> {
+    /// let client = SrgxImpl::new("token".to_string(), "code".to_string());
+    /// let response = client.send_request::<serde_json::Value>("/api/query", None).await?;
+    /// # Ok(())
+    /// # }
     /// ```
     pub async fn send_request<T: DeserializeOwned>(
         &self,
         endpoint: &str,
-        params: Option<Vec<(&str, String)>>,
+        extra_params: Option<Vec<(&str, String)>>,
     ) -> Result<T> {
-        // 构建基础URL
-        let mut url = format!(
-            "{}{}?code={}&api_key={}",
-            BASE_URL, endpoint, self.code, self.api_token
-        );
+        let base_url = format!("{}{}", BASE_URL, endpoint);
 
-        // 添加额外参数
-        if let Some(params) = params {
-            for (key, value) in params {
-                url.push_str(&format!("&{}={}", key, value));
+        // 构建查询参数，使用 (String, String) 避免生命周期问题
+        let mut params: Vec<(String, String)> = vec![
+            ("code".to_string(), self.code.clone()),
+            ("api_key".to_string(), self.api_token.clone()),
+        ];
+
+        if let Some(extra) = extra_params {
+            for (key, value) in extra {
+                params.push((key.to_string(), value));
             }
         }
 
-        // 发送请求
-        let resp = self.client.get(&url).send().await?;
+        let resp = self.client.get(&base_url).query(&params).send().await?;
+
         let status = resp.status();
         let text = resp.text().await?;
 
-        // 1. 处理 HTTP 错误（4xx, 5xx）
+        // 处理 HTTP 错误（4xx, 5xx）
         if !status.is_success() {
             if let Ok(val) = serde_json::from_str::<Value>(&text) {
                 if let Some(msg) = val.get("message").and_then(|m| m.as_str()) {
@@ -76,7 +76,7 @@ impl SrgxImpl {
             return Err(anyhow!("HTTP错误 ({}): {}", status, text));
         }
 
-        // 2. 处理业务错误（HTTP 200 但 success=false）
+        // 处理业务错误（HTTP 200 但 success=false）
         if let Ok(val) = serde_json::from_str::<Value>(&text) {
             if let Some(success) = val.get("success").and_then(|s| s.as_bool()) {
                 if !success {
@@ -84,13 +84,34 @@ impl SrgxImpl {
                         .get("message")
                         .and_then(|m| m.as_str())
                         .unwrap_or("未知业务错误");
-                    let real_err = ApiError::from_message(error_msg);
-                    return Err(anyhow!("业务错误: {}", real_err));
+                    return Err(anyhow!("业务错误: {}", ApiError::from_message(error_msg)));
                 }
             }
         }
 
-        // 3. 真正的成功：反序列化为目标类型
+        // 成功：反序列化为目标类型
         Ok(serde_json::from_str::<T>(&text)?)
+    }
+
+    /// 查询学历信息
+    ///
+    /// # 示例
+    /// ```
+    /// use lib_srgx_rs::SrgxImpl;
+    /// use lib_srgx_rs::api_data::QueryResponse;
+    ///
+    /// # #[tokio::main]
+    /// # async fn main() -> anyhow::Result<()> {
+    /// let client = SrgxImpl::new("your_token".to_string(), "your_code".to_string());
+    /// let response = client.get_query().await?;
+    ///
+    /// if let Some(data) = response.success_data() {
+    ///     println!("姓名: {}, 学校: {}", data.name, data.school_name);
+    /// }
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub async fn get_query(&self) -> Result<api_data::QueryResponse> {
+        self.send_request("/api/query", None).await
     }
 }
