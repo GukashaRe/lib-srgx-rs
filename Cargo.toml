@@ -3,9 +3,19 @@ name = "lib-srgx-rs"
 version = "0.1.0"
 edition = "2024"
 license = "MIT"
+repository = "https://github.com/GukashaRe/lib-srgx-rs"
+homepage = "https://srgaoxiao.online/"
+description = "神人高校 API 的非官方 Rust SDK，用于查询学信网学历信息"
+authors = ["GukashaRe <gukasha@163.com>"]
+keywords = ["chsi", "education", "xueli", "srgaoxiao", "sdk"]
+categories = ["web-programming","api-bindings"]
+
 
 [dependencies]
 anyhow = "1.0.102"
 reqwest = { version = "0.13.4", features = ["json"] }
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.150"
+
+[dev-dependencies]
+tokio = { version = "1.52.3", features = ["full","test-util"] }

@@ -1,4 +1,7 @@
+pub mod api_data;
+
 use anyhow::{Result, anyhow};
+use api_data::errors::ApiError;
 use reqwest::Client;
 use serde::de::DeserializeOwned;
 use serde_json::Value;
@@ -35,6 +38,12 @@ impl SrgxImpl {
     /// # 返回
     /// - `Ok(T)`: 成功反序列化的数据
     /// - `Err(anyhow::Error)`: HTTP错误、业务错误、解析错误
+    /// # example
+    /// ```
+    /// use lib_srgx_rs::SrgxImpl;
+    /// let requester = SrgxImpl::new("this_is_a_api_token","this_is_a_key");
+    /// requester.send_request::<SomeDeserializeedStruct>("/api/query",None);
+    /// ```
     pub async fn send_request<T: DeserializeOwned>(
         &self,
         endpoint: &str,
@@ -76,7 +85,8 @@ impl SrgxImpl {
                         .get("message")
                         .and_then(|m| m.as_str())
                         .unwrap_or("未知业务错误");
-                    return Err(anyhow!("业务错误: {}", error_msg));
+                    let real_err = ApiError::from_message(error_msg);
+                    return Err(anyhow!("业务错误: {}", real_err));
                 }
             }
         }
