@@ -1,2 +1,6 @@
 /target
 .idea
+*.rlib
+*.d
+*.mir
+*.rmeta
