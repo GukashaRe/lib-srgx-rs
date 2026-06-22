@@ -32,12 +32,15 @@ impl SrgxImpl {
     /// 统一请求方法：处理所有公共逻辑
     ///
     /// # 示例
-    /// ```
+    /// ```no_run
     /// use lib_srgx_rs::SrgxImpl;
     ///
     /// # #[tokio::main]
     /// # async fn main() -> anyhow::Result<()> {
-    /// let client = SrgxImpl::new("token".to_string(), "code".to_string());
+    /// let client = SrgxImpl::new(
+    ///     std::env::var("SRGX_TEST_TOKEN").unwrap_or_else(|_| "test_token".to_string()),
+    ///     std::env::var("SRGX_TEST_CODE").unwrap_or_else(|_| "test_code".to_string()),
+    /// );
     /// let response = client.send_request::<serde_json::Value>("/api/query", None).await?;
     /// # Ok(())
     /// # }
@@ -49,7 +52,6 @@ impl SrgxImpl {
     ) -> Result<T> {
         let base_url = format!("{}{}", BASE_URL, endpoint);
 
-        // 构建查询参数，使用 (String, String) 避免生命周期问题
         let mut params: Vec<(String, String)> = vec![
             ("code".to_string(), self.code.clone()),
             ("api_key".to_string(), self.api_token.clone()),
@@ -66,7 +68,6 @@ impl SrgxImpl {
         let status = resp.status();
         let text = resp.text().await?;
 
-        // 处理 HTTP 错误（4xx, 5xx）
         if !status.is_success() {
             if let Ok(val) = serde_json::from_str::<Value>(&text) {
                 if let Some(msg) = val.get("message").and_then(|m| m.as_str()) {
@@ -76,7 +77,6 @@ impl SrgxImpl {
             return Err(anyhow!("HTTP错误 ({}): {}", status, text));
         }
 
-        // 处理业务错误（HTTP 200 但 success=false）
         if let Ok(val) = serde_json::from_str::<Value>(&text) {
             if let Some(success) = val.get("success").and_then(|s| s.as_bool()) {
                 if !success {
@@ -89,24 +89,26 @@ impl SrgxImpl {
             }
         }
 
-        // 成功：反序列化为目标类型
         Ok(serde_json::from_str::<T>(&text)?)
     }
 
     /// 查询学历信息
     ///
     /// # 示例
-    /// ```
+    /// ```no_run
     /// use lib_srgx_rs::SrgxImpl;
     /// use lib_srgx_rs::api_data::QueryResponse;
     ///
     /// # #[tokio::main]
     /// # async fn main() -> anyhow::Result<()> {
-    /// let client = SrgxImpl::new("your_token".to_string(), "your_code".to_string());
+    /// let client = SrgxImpl::new(
+    ///     std::env::var("SRGX_TEST_TOKEN").unwrap_or_else(|_| "test_token".to_string()),
+    ///     std::env::var("SRGX_TEST_CODE").unwrap_or_else(|_| "test_code".to_string()),
+    /// );
     /// let response = client.get_query().await?;
     ///
     /// if let Some(data) = response.success_data() {
-    ///     println!("姓名: {}, 学校: {}", data.name, data.school_name);
+    ///     println!("name: {}", data.name);
     /// }
     /// # Ok(())
     /// # }
