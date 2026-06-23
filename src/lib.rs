@@ -1,8 +1,10 @@
 pub mod api_data;
 
+use crate::api_data::QueryResponse;
 use anyhow::{Result, anyhow};
 use api_data::errors::ApiError;
 use reqwest::Client;
+use serde::Serialize;
 use serde::de::DeserializeOwned;
 use serde_json::Value;
 
@@ -69,27 +71,60 @@ impl SrgxImpl {
         let text = resp.text().await?;
 
         if !status.is_success() {
-            if let Ok(val) = serde_json::from_str::<Value>(&text) {
-                if let Some(msg) = val.get("message").and_then(|m| m.as_str()) {
-                    return Err(anyhow!("HTTP错误 ({}): {}", status, msg));
-                }
+            if let Ok(val) = serde_json::from_str::<Value>(&text)
+                && let Some(msg) = val.get("message").and_then(|m| m.as_str())
+            {
+                return Err(anyhow!("HTTP错误 ({}): {}", status, msg));
             }
             return Err(anyhow!("HTTP错误 ({}): {}", status, text));
         }
 
-        if let Ok(val) = serde_json::from_str::<Value>(&text) {
-            if let Some(success) = val.get("success").and_then(|s| s.as_bool()) {
-                if !success {
-                    let error_msg = val
-                        .get("message")
-                        .and_then(|m| m.as_str())
-                        .unwrap_or("未知业务错误");
-                    return Err(anyhow!("业务错误: {}", ApiError::from_message(error_msg)));
-                }
-            }
+        if let Ok(val) = serde_json::from_str::<Value>(&text)
+            && let Some(success) = val.get("success").and_then(|s| s.as_bool())
+            && !success
+        {
+            let error_msg = val
+                .get("message")
+                .and_then(|m| m.as_str())
+                .unwrap_or("未知业务错误");
+            return Err(anyhow!("业务错误: {}", ApiError::from_message(error_msg)));
         }
 
         Ok(serde_json::from_str::<T>(&text)?)
+    }
+
+    pub async fn send_post_request<I: Serialize, O: DeserializeOwned>(
+        &self,
+        endpoint: &str,
+        data: &I,
+    ) -> Result<O> {
+        let base_url = format!("{}{}", BASE_URL, endpoint);
+        let resp = self.client.post(&base_url).json(data).send().await?;
+
+        let status = resp.status();
+        let text = resp.text().await?;
+
+        if !status.is_success() {
+            if let Ok(val) = serde_json::from_str::<Value>(&text)
+                && let Some(msg) = val.get("message").and_then(|m| m.as_str())
+            {
+                return Err(anyhow!("HTTP错误 ({}): {}", status, msg));
+            }
+            return Err(anyhow!("HTTP错误 ({}): {}", status, text));
+        }
+
+        if let Ok(val) = serde_json::from_str::<Value>(&text)
+            && let Some(success) = val.get("success").and_then(|s| s.as_bool())
+            && !success
+        {
+            let error_msg = val
+                .get("message")
+                .and_then(|m| m.as_str())
+                .unwrap_or("未知业务错误");
+            return Err(anyhow!("业务错误: {}", ApiError::from_message(error_msg)));
+        }
+
+        Ok(serde_json::from_str::<O>(&text)?)
     }
 
     /// 查询学历信息
@@ -113,7 +148,7 @@ impl SrgxImpl {
     /// # Ok(())
     /// # }
     /// ```
-    pub async fn get_query(&self) -> Result<api_data::QueryResponse> {
+    pub async fn get_query(&self) -> Result<QueryResponse> {
         self.send_request("/api/query", None).await
     }
 }
