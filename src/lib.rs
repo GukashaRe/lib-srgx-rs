@@ -108,7 +108,7 @@ impl SrgxImpl {
     /// let response = client.get_query().await?;
     ///
     /// if let Some(data) = response.success_data() {
-    ///     println!("name: {}", data.name);
+    ///     println!("name: {} school {}", data.name, data.school_name);
     /// }
     /// # Ok(())
     /// # }
