@@ -195,7 +195,7 @@ mod tests {
         let json = r#"{"success":true,"name":"张某某","schoolName":"某大学","major":"园艺","degreeLevel":"本科","elapsed":602,"nodeId":"node_1"}"#;
         let resp: QuerySuccessResponse = serde_json::from_str(json).unwrap();
 
-        assert_eq!(resp.success, true);
+        assert!(resp.success);
         assert_eq!(resp.name, "张某某");
         assert_eq!(resp.school_name, "某大学");
         assert_eq!(resp.major, "园艺");
@@ -209,7 +209,7 @@ mod tests {
         let json = r#"{"success":false,"message":"报告已过期","elapsed":300}"#;
         let resp: QueryErrorResponse = serde_json::from_str(json).unwrap();
 
-        assert_eq!(resp.success, false);
+        assert!(!resp.success);
         assert_eq!(resp.message, "报告已过期");
         assert_eq!(resp.elapsed, 300);
     }
