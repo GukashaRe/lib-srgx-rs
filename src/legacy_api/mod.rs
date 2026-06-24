@@ -61,7 +61,7 @@ impl<'a> LegacyApi<'a> {
 
         let mut request_builder = self
             .client
-            .get(&base_url.join(endpoint)?.to_string())
+            .get(base_url.join(endpoint)?.to_string())
             .query(&params);
 
         if !no_auth {
