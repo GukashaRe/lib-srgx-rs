@@ -1,5 +1,9 @@
 #![cfg(feature = "legacy_api_unfinished")]
 
+pub mod reply;
+
+use std::borrow::Cow;
+
 use crate::api_data::errors::ApiError;
 use anyhow::anyhow;
 use reqwest::Client;
@@ -10,7 +14,7 @@ use serde_json::Value;
 const LEGACY_BASE_URL: &str = "";
 
 pub struct LegacyApi<'a> {
-    token: &'a str,
+    token: Cow<'a, str>,
     client: Client,
 }
 
@@ -24,8 +28,12 @@ impl<'a> LegacyApi<'a> {
             .https_only(true)
             .build()
             .unwrap();
+
+        // 在创建时拼接 Bearer 前缀，用 Cow 统一管理
+        let full_token = Cow::Owned(format!("Bearer {}", bearer_token));
+
         Self {
-            token: bearer_token,
+            token: full_token,
             client,
         }
     }
@@ -33,11 +41,12 @@ impl<'a> LegacyApi<'a> {
     pub async fn fetch<T: DeserializeOwned>(
         &self,
         endpoint: &str,
+        no_auth: bool,
         extra_params: Option<Vec<(&str, String)>>,
     ) -> anyhow::Result<T> {
         let base_url = format!("{}{}", LEGACY_BASE_URL, endpoint);
 
-        let mut params = vec![];
+        let mut params: Vec<(String, String)> = vec![];
 
         if let Some(extra) = extra_params {
             for (key, value) in extra {
@@ -45,13 +54,14 @@ impl<'a> LegacyApi<'a> {
             }
         }
 
-        let resp = self
-            .client
-            .get(&base_url)
-            .header(AUTHORIZATION, self.token)
-            .query(&params)
-            .send()
-            .await?;
+        let mut request_builder = self.client.get(&base_url).query(&params);
+
+        if !no_auth {
+            // 直接使用已经包含 Bearer 前缀的 token
+            request_builder = request_builder.header(AUTHORIZATION, &*self.token);
+        }
+
+        let resp = request_builder.send().await?;
 
         let status = resp.status();
         let text = resp.text().await?;
