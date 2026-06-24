@@ -13,7 +13,7 @@
 //! # 示例
 //!
 //! ```no_run
-//! use your_crate::legacy_api::LegacyApi;
+//! use lib_srgx_rs::legacy_api::LegacyApi;
 //!
 //! #[tokio::main]
 //! async fn main() -> anyhow::Result<()> {
