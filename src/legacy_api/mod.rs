@@ -34,6 +34,8 @@ use std::borrow::Cow;
 use std::time::Duration;
 
 use crate::api_data::errors::ApiError;
+use crate::legacy_api::school_comments::Root;
+use anyhow::Result;
 use anyhow::anyhow;
 use reqwest::header::AUTHORIZATION;
 use reqwest::{Client, Url};
@@ -159,7 +161,7 @@ impl<'a> LegacyApi<'a> {
         endpoint: &str,
         require_auth: bool,
         extra_params: Option<Vec<(&str, String)>>,
-    ) -> anyhow::Result<T> {
+    ) -> Result<T> {
         let base_url = Url::parse(LEGACY_BASE_URL)?;
         let endpoint_clean = endpoint.trim_start_matches('/');
         let full_url = base_url.join(endpoint_clean)?;
@@ -204,6 +206,27 @@ impl<'a> LegacyApi<'a> {
         }
 
         serde_json::from_str::<T>(&text).map_err(|e| anyhow!("响应反序列化失败: {}", e))
+    }
+    /// 获取学校评价列表
+    pub async fn get_school_reviews(
+        &self,
+        school_id: i64,
+        user_id: Option<i64>,
+        sort: impl Into<String>,
+        page: i64,
+        page_size: i64,
+    ) -> Result<Root> {
+        let endpoint = format!("/api/reviews/school/{}", school_id);
+
+        let mut extra_params = Vec::new();
+        if let Some(uid) = user_id {
+            extra_params.push(("userId", uid.to_string()));
+        }
+        extra_params.push(("sort", sort.into()));
+        extra_params.push(("page", page.to_string()));
+        extra_params.push(("pageSize", page_size.to_string()));
+
+        self.fetch(&endpoint, false, Some(extra_params)).await
     }
 }
 
