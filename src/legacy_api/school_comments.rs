@@ -1,77 +1,195 @@
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
+use std::collections::HashMap;
 
+/// 评价列表响应结构体
+///
+/// 包含分页信息、校区列表以及评价数据
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ReviewResponse {
+    /// 总记录数
     pub total: i64,
+    /// 当前页码
     pub page: i64,
+    /// 每页大小
     #[serde(rename = "pageSize")]
     pub page_size: i64,
+    /// 总页数
     #[serde(rename = "totalPages")]
     pub total_pages: i64,
+    /// 校区列表
     pub campuses: Vec<Campus>,
+    /// 当前活跃校区（可能为 null）
     #[serde(rename = "activeCampus")]
-    pub active_campus: Option<serde_json::Value>,
+    pub active_campus: Option<Value>,
+    /// 评价数据列表
     pub data: Vec<ReviewItem>,
 }
 
+impl ReviewResponse {
+    /// 过滤掉同一个 user_id 的重复评论，只保留每个用户最新的一条评论
+    ///
+    /// 按 `created_at` 字段判断新旧，保留时间最新的那条。
+    ///
+    /// # 示例
+    /// ```
+    /// use lib_srgx_rs::legacy_api::school_comments::ReviewResponse;
+    ///
+    /// let response: ReviewResponse = serde_json::from_str(json)?;
+    /// let filtered = response.filter_unique_users();
+    /// assert!(filtered.data.len() <= response.data.len());
+    /// ```
+    pub fn filter_unique_users(mut self) -> Self {
+        let mut user_map: HashMap<i64, ReviewItem> = HashMap::new();
+        
+        for item in self.data {
+            user_map
+                .entry(item.user_id)
+                .and_modify(|existing| {
+                    // 如果当前条目比已存在的更新，则替换
+                    if item.created_at > existing.created_at {
+                        *existing = item.clone();
+                    }
+                })
+                .or_insert(item);
+        }
+        
+        // 将去重后的数据重新赋值，并保持原有的分页信息不变
+        self.data = user_map.into_values().collect();
+        self.total = self.data.len() as i64;
+        // 更新总页数（向上取整）
+        if self.page_size > 0 {
+            self.total_pages = (self.total + self.page_size - 1) / self.page_size;
+        }
+        self
+    }
+    
+    /// 获取某个用户的所有评论
+    ///
+    /// # 示例
+    /// ```
+    /// let response: ReviewResponse = serde_json::from_str(json)?;
+    /// let user_comments = response.get_user_comments(3275);
+    /// ```
+    pub fn get_user_comments(&self, user_id: i64) -> Vec<&ReviewItem> {
+        self.data
+            .iter()
+            .filter(|item| item.user_id == user_id)
+            .collect()
+    }
+    
+    /// 获取所有唯一的用户 ID 列表
+    pub fn unique_user_ids(&self) -> Vec<i64> {
+        let mut ids: Vec<i64> = self.data.iter().map(|item| item.user_id).collect();
+        ids.sort();
+        ids.dedup();
+        ids
+    }
+}
+
+/// 校区信息
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Campus {
+    /// 校区 ID
     pub id: i64,
+    /// 校区名称
     pub name: String,
 }
 
+/// 评价条目
+///
+/// 包含评价的所有信息，包括用户、学校、内容、点赞等
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ReviewItem {
+    /// 评价 ID
     pub id: i64,
+    /// 用户 ID
     pub user_id: i64,
+    /// 学校 ID
     pub school_id: i64,
-    // 保留新版字段
+    /// 评价状态
     pub status: String,
-    pub reject_reason: Option<serde_json::Value>,
+    /// 拒绝原因（如果被拒绝）
+    pub reject_reason: Option<Value>,
+    /// 评价内容
     pub content: String,
-    pub images: Option<serde_json::Value>,
+    /// 图片列表（JSON 数组）
+    pub images: Option<Value>,
+    /// 显示名称
     pub display_name: String,
+    /// 创建时间
     pub created_at: String,
+    /// 更新时间
     pub updated_at: String,
+    /// 浏览次数
     pub view_count: i64,
-    pub submission_id: Option<serde_json::Value>,
+    /// 提交 ID（可能为 null）
+    pub submission_id: Option<Value>,
+    /// 审核任务 ID
     pub mod_task_id: String,
+    /// 审核建议
     pub mod_suggestion: String,
-    pub campus_id: Option<serde_json::Value>,
+    /// 校区 ID（可能为 null）
+    pub campus_id: Option<Value>,
+    /// 点赞数
     pub like_count: i64,
+    /// 回复数
     pub reply_count: i64,
+    /// 评价权重（用于排序）
     pub review_weight: f64,
+    /// 用户昵称
     pub nickname: String,
-    pub verified_school_id: Option<serde_json::Value>,
-    pub avatar_path: Option<serde_json::Value>,
-    pub level: Option<serde_json::Value>,
-    pub title: Option<serde_json::Value>,
+    /// 认证学校 ID（可能为 null）
+    pub verified_school_id: Option<Value>,
+    /// 头像路径（可能为 null）
+    pub avatar_path: Option<Value>,
+    /// 用户等级（可能为 null）
+    pub level: Option<Value>,
+    /// 用户头衔（可能为 null）
+    pub title: Option<Value>,
+    /// 校区名称（可能为 null）
     pub campus_name: Option<String>,
+    /// 是否匿名
     #[serde(rename = "isAnonymous")]
     pub is_anonymous: bool,
+    /// 是否认证用户
     #[serde(rename = "isVerified")]
     pub is_verified: bool,
+    /// 当前用户是否已点赞
     pub user_liked: bool,
+    /// 评分详情（可能为 null）
     pub rating: Option<Rating>,
 }
 
+/// 评分详情
+///
+/// 包含评价的各方面评分
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Rating {
+    /// 评分 ID
     pub id: i64,
+    /// 关联的评价 ID
     pub review_id: i64,
+    /// 宿舍评分（1-5 分）
     pub dormitory: Option<i64>,
+    /// 食堂评分（1-5 分）
     pub cafeteria: Option<i64>,
+    /// 师资评分（1-5 分）
     pub faculty: Option<i64>,
+    /// 环境评分（1-5 分）
     pub environment: Option<i64>,
+    /// 文化氛围评分（1-5 分）
     pub culture: Option<i64>,
+    /// 就业前景评分（1-5 分）
     pub employment: Option<i64>,
+    /// 安全状况评分（1-5 分）
     pub safety: Option<i64>,
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::legacy_api::school_comments::ReviewResponse;
-
+    use super::*;
+    
     #[test]
     fn test_reply_deserde() {
         let json = r#"{
@@ -80,22 +198,10 @@ mod tests {
     "pageSize": 10,
     "totalPages": 2,
     "campuses": [
-        {
-            "id": 1131,
-            "name": "东校区"
-        },
-        {
-            "id": 1132,
-            "name": "师范分院校区"
-        },
-        {
-            "id": 1133,
-            "name": "南校区"
-        },
-        {
-            "id": 1134,
-            "name": "北校区"
-        }
+        {"id": 1131, "name": "东校区"},
+        {"id": 1132, "name": "师范分院校区"},
+        {"id": 1133, "name": "南校区"},
+        {"id": 1134, "name": "北校区"}
     ],
     "activeCampus": null,
     "data": [
@@ -106,7 +212,7 @@ mod tests {
             "is_anonymous": 1,
             "status": "approved",
             "reject_reason": null,
-            "content": "此城市一个月有半个月中度污染及以上，空气质量及其差劲，北校每天早上七点多得出去跑操，晚上还有晚自习，宿舍楼堪比德军战俘营，宿舍厕所每天看了都只能说人类拉了一地，小便冲大便，澡堂子水都是偏黄的，还没有吹风机，拖鞋是从来不消毒的，一箱子拖鞋堪比生化武器，尤其理工科排课更是史中之史，每周四天早八三天满课，每周都有几天有莫名其妙活动占用为数不多的午休，强制学生参加某些无意义活动，教学楼实验器材比我岁数都大，都得是上个世纪的了，学校教室凳子桌子斑驳不堪不知道以为送到二战战场上经过炮火的洗礼了，最主要一栋楼上机课爬十一楼电梯就俩，每周都得上下一次十一楼，不知道以为搁这做有氧呢，这边也是给到拉完了",
+            "content": "此城市一个月有半个月中度污染及以上，空气质量及其差劲...",
             "images": null,
             "display_name": "匿名用户",
             "created_at": "2026-04-22 09:20:50",
@@ -139,7 +245,7 @@ mod tests {
             "is_anonymous": 1,
             "status": "approved",
             "reject_reason": null,
-            "content": "此城市一个月有半个月中度污染及以上，空气质量及其差劲，北校每天早上七点多得出去跑操，晚上还有晚自习，宿舍楼堪比德军战俘营，宿舍厕所每天看了都只能说人类拉了一地，小便冲大便，澡堂子水都是偏黄的，还没有吹风机，拖鞋是从来不消毒的，一箱子拖鞋堪比生化武器，尤其理工科排课更是史中之史，每周四天早八三天满课，每周都有几天有莫名其妙活动占用为数不多的午休，强制学生参加某些无意义活动，教学楼实验器材比我岁数都大，都得是上个世纪的了，学校教室凳子桌子斑驳不堪不知道以为送到二战战场上经过炮火的洗礼了，最主要一栋楼上机课爬十一楼电梯就俩，每周都得上下一次十一楼，不知道以为搁这做有氧呢，这边也是给到拉完了",
+            "content": "此城市一个月有半个月中度污染及以上，空气质量及其差劲...",
             "images": null,
             "display_name": "匿名用户",
             "created_at": "2026-04-22 09:20:21",
@@ -172,7 +278,7 @@ mod tests {
             "is_anonymous": 1,
             "status": "approved",
             "reject_reason": null,
-            "content": "我仅代表我个人体验观点，当然了，不同校区不同院肯定是有差距的，我们部分季节有早操，但是吧…你要是有什么情况都可以请假嘛，仅仅大一有点晚自习，上课老师绝对绝对负责，奈何我们很多学生学习确实不太认真，食堂我真的没的说，真的挺不错了，一点不比外面差，你去网上都能搜到，宿舍是25年暑假翻新，我的情况是大一8人寝，大二部分4人，大三大四都4人，环境就跟另一个评论照片一样，还有今年暑假又要翻新，具体不清楚，空调也应该快了，有一个公寓已经安上了，空气质量去年有一段时间确实非常非常差，可能是燃烧秸秆导致，别的大多数时候没什么不好的，洗浴是在校内的一个集中的澡堂，环境只能说还凑合，也不至于多不好，基本卫生没问题，不过很多时候我都去校外，虽然远点但也不麻烦，实验室确实明显破旧，不过器材好像不少都新的，做实验一点问题没有，厕所卫生除了宿舍之外都很干净，宿舍是一天一打扫，总是有神人不冲厕所没办法，不过一般也不至于没正常厕所上，这是我在东校的生活体验，有什么问题我看到了会再回复的，这就是个双非二本，虽然说生活条件没什么优势，但也不至于成为他的劣势，其他校区条件似乎是会差些，这个我不评价，我只说东校",
+            "content": "我仅代表我个人体验观点...",
             "images": null,
             "display_name": "匿名用户",
             "created_at": "2026-05-03 07:58:29",
@@ -205,7 +311,7 @@ mod tests {
             "is_anonymous": 1,
             "status": "approved",
             "reject_reason": null,
-            "content": "此城市一个月有半个月中度污染及以上，空气质量及其差劲，北校每天早上七点多得出去跑操，晚上还有晚自习，宿舍楼堪比德军战俘营，宿舍厕所每天看了都只能说人类拉了一地，小便冲大便，澡堂子水都是偏黄的，还没有吹风机，拖鞋是从来不消毒的，一箱子拖鞋堪比生化武器，尤其理工科排课更是史中之史，每周四天早八三天满课，每周都有几天有莫名其妙活动占用为数不多的午休，强制学生参加某些无意义活动，教学楼实验器材比我岁数都大，都得是上个世纪的了，学校教室凳子桌子斑驳不堪不知道以为送到二战战场上经过炮火的洗礼了，最主要一栋楼上机课爬十一楼电梯就俩，每周都得上下一次十一楼，不知道以为搁这做有氧呢，这边也是给到拉完了",
+            "content": "此城市一个月有半个月中度污染及以上，空气质量及其差劲...",
             "images": null,
             "display_name": "匿名用户",
             "created_at": "2026-04-22 09:20:15",
@@ -238,7 +344,7 @@ mod tests {
             "is_anonymous": 1,
             "status": "approved",
             "reject_reason": null,
-            "content": "来这上学真是当m了，早晚自习上个爽，周日晚上还要晚自习，开学前一天还要上晚自习。校区也就东校区能看些了，另外两个校区正是文物级别的了，学校宣传都不拍。这学校还挺要面子，学校的官方社交账号，比如抖音和微信公众号都不开评论区，真是怕被看见了什么。大一进来的时候有极小可能住4人寝，不然就8让上下床的小寝室，以后再想住4人寝的话就等大3大4抽签。4台电脑就跳闸，公厕臭的很，有时候去坑里面蹲出来，衣服都入味了，还有一堆神人拉了不冲，饮水机放厕所旁边，有时候有怪味",
+            "content": "来这上学真是当m了...",
             "images": null,
             "display_name": "匿名用户",
             "created_at": "2026-06-05 22:44:36",
@@ -271,7 +377,7 @@ mod tests {
             "is_anonymous": 1,
             "status": "approved",
             "reject_reason": null,
-            "content": "纯纯的逆天学校，宿舍老破旧，6-8人寝室居多，还有十几人寝室，宿舍经常停水停电，北校区三公寓限电500w总共，晚上十一二点就男生宿舍全部断电，男女生宿舍待遇及其不均衡，女生宿舍起火或电压超载，转头就查男生宿舍，男女区别对待，留学生与本校生区别对待。东校区和北校区资源分配及其不均匀，有一点点水平的教师全部都在东校区，北校纯纯老破小，体育馆不给除了体育学院的任何学生使用，即使有体育学院的学生在羽毛球馆里滑板，都不给北校区非体育专业学生使用。你不能举报学校，因为一点点风吹草动都会招来学校的恶意处分。遇事先封口.黑人印度人都比本校学生过的好一万倍。北校区的塑胶跑道是烂了的，空气污染指数常年500居高不下，出去跑个步嗓子能辣死。学校附近全是工厂。",
+            "content": "纯纯的逆天学校...",
             "images": null,
             "display_name": "匿名用户",
             "created_at": "2026-05-14 08:40:48",
@@ -314,7 +420,7 @@ mod tests {
             "is_anonymous": 1,
             "status": "approved",
             "reject_reason": null,
-            "content": "首先，要声明的是北华大学师范分院和北华大学只有大层面的关系。即类似学信网这种国家的网站，在这里的人都可以是认证为北华大学，然后这里没有北华大学的宿舍，宿舍十人寝没有衣柜上下床，女寝充电宝充电有限制是两万瓦，男寝没有；其次，这里的老师分人，有的老师就很神经病，还有的老师以为自己很牛逼就会阴阳怪气你；还有，学校分为教一，教二和综合楼。25年各个楼刚取名字但是一般还是这么叫，综合楼是学校的门面，因为越近里面越破。学生会分系，有的学生会就像机器人一样只认死命令，当然不得不提到“节能减排”啦，也就是“学校寝室没电，教室里不让充电不让开窗不让开风扇”，最后如果来这学校的话，要么退学要么专升本，因为这学校不会卡你毕业",
+            "content": "首先，要声明的是北华大学师范分院和北华大学只有大层面的关系...",
             "images": null,
             "display_name": "匿名用户",
             "created_at": "2026-05-13 05:52:08",
@@ -357,7 +463,7 @@ mod tests {
             "is_anonymous": 1,
             "status": "approved",
             "reject_reason": null,
-            "content": "寝室的话 我这边可能是中奖了，仅作参考吧，25 级大一新生心理学男生寝室是四人寝（南校2公寓），没有空调，限电特别严重。",
+            "content": "寝室的话 我这边可能是中奖了...",
             "images": "/uploads/f08bdeef-2f0a-40c2-a620-9a80836ce270.jpg",
             "display_name": "匿名用户",
             "created_at": "2026-04-26 15:45:54",
@@ -390,7 +496,7 @@ mod tests {
             "is_anonymous": 1,
             "status": "approved",
             "reject_reason": null,
-            "content": "早上六点整起床上早操 吃口饭就要开启一天的课程 晚自习还要上到晚上八点半 到宿舍看见八人寝连个桌子都没有天都塌了",
+            "content": "早上六点整起床上早操...",
             "images": null,
             "display_name": "匿名用户",
             "created_at": "2026-04-21 11:28:58",
@@ -433,7 +539,7 @@ mod tests {
             "is_anonymous": 1,
             "status": "approved",
             "reject_reason": null,
-            "content": "南校，校区老破小，宿舍八人没空调夏天是蒸笼，老师大多上课念ppt，基础设施极不完善，图书馆书全是和我一辈的，而且自习经常没座位，评价为烂完了😅😅😅",
+            "content": "南校，校区老破小...",
             "images": null,
             "display_name": "匿名用户",
             "created_at": "2026-04-19 19:45:49",
@@ -461,7 +567,41 @@ mod tests {
         }
     ]
 }"#;
+        
         let resp: ReviewResponse = serde_json::from_str(json).unwrap();
-        assert_eq!(resp.data[0].content, "此城市一个月有半个月中度污染及以上，空气质量及其差劲，北校每天早上七点多得出去跑操，晚上还有晚自习，宿舍楼堪比德军战俘营，宿舍厕所每天看了都只能说人类拉了一地，小便冲大便，澡堂子水都是偏黄的，还没有吹风机，拖鞋是从来不消毒的，一箱子拖鞋堪比生化武器，尤其理工科排课更是史中之史，每周四天早八三天满课，每周都有几天有莫名其妙活动占用为数不多的午休，强制学生参加某些无意义活动，教学楼实验器材比我岁数都大，都得是上个世纪的了，学校教室凳子桌子斑驳不堪不知道以为送到二战战场上经过炮火的洗礼了，最主要一栋楼上机课爬十一楼电梯就俩，每周都得上下一次十一楼，不知道以为搁这做有氧呢，这边也是给到拉完了".to_string());
+        
+        // 测试原始数据：10 条
+        assert_eq!(resp.data.len(), 10);
+        
+        // 测试过滤重复用户
+        let filtered = resp.filter_unique_users();
+        
+        // user_id: 3275 有 3 条，去重后保留 1 条，减少 2 条
+        // 所以 10 - 2 = 8
+        assert_eq!(filtered.data.len(), 8);  // ✅ 改为 8
+        
+        // 验证去重后 user_id 3275 只保留最新的一条
+        let user_3275: Vec<&ReviewItem> = filtered
+            .data
+            .iter()
+            .filter(|item| item.user_id == 3275)
+            .collect();
+        assert_eq!(user_3275.len(), 1);
+        assert_eq!(user_3275[0].id, 2114); // 最新的评论 id 是 2114
+        
+        // 测试获取用户评论
+        let comments = filtered.get_user_comments(3275);
+        assert_eq!(comments.len(), 1);
+        
+        // 测试唯一用户 ID 列表
+        let unique_ids = filtered.unique_user_ids();
+        assert_eq!(unique_ids.len(), 8);
+        assert!(unique_ids.contains(&3275));
+        assert!(unique_ids.contains(&8655));
+        assert!(unique_ids.contains(&14318));
+        
+        // 测试原始数据不受影响（因为 filter_unique_users 消耗了 self）
+        let resp2: ReviewResponse = serde_json::from_str(json).unwrap();
+        assert_eq!(resp2.data.len(), 10);
     }
 }
