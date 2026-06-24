@@ -1,6 +1,7 @@
 #![cfg(feature = "legacy_api_unfinished")]
 
 pub mod reply;
+pub mod school_comments;
 
 use std::borrow::Cow;
 
@@ -11,7 +12,7 @@ use reqwest::header::AUTHORIZATION;
 use serde::de::DeserializeOwned;
 use serde_json::Value;
 
-const LEGACY_BASE_URL: &str = "";
+const LEGACY_BASE_URL: &str = "https://srgaoxiao.com/api";
 
 pub struct LegacyApi<'a> {
     token: Cow<'a, str>,
