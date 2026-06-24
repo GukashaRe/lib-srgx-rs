@@ -77,7 +77,9 @@ impl<'a> LegacyApi<'a> {
 
         let status = resp.status();
         let text = resp.text().await?;
-
+        //        eprintln!("=== 响应体前 5000 字符 ===");
+        //        eprintln!("{}", &text.chars().take(5000).collect::<String>());
+        //        eprintln!("=== 响应体结束 ===");
         if !status.is_success() {
             if let Ok(val) = serde_json::from_str::<Value>(&text)
                 && let Some(msg) = val.get("message").and_then(|m| m.as_str())
