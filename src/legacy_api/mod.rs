@@ -37,7 +37,7 @@ impl<'a> LegacyApi<'a> {
     ) -> anyhow::Result<T> {
         let base_url = format!("{}{}", LEGACY_BASE_URL, endpoint);
 
-        let mut params: Vec<(String, String)> = vec![];
+        let mut params = vec![];
 
         if let Some(extra) = extra_params {
             for (key, value) in extra {
