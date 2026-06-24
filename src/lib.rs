@@ -1,4 +1,5 @@
 pub mod api_data;
+pub mod legacy_api;
 
 use crate::api_data::QueryResponse;
 use anyhow::{Result, anyhow};

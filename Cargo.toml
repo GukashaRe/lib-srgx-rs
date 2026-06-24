@@ -19,3 +19,8 @@ serde_json = "1.0.150"
 
 [dev-dependencies]
 tokio = { version = "1.52.3", features = ["full","test-util"] }
+
+[features]
+legacy_api = []
+default = []
+advanced_http = ["reqwest/rustls", "reqwest/cookies"]
