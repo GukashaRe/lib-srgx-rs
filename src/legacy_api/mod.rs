@@ -7,8 +7,8 @@ use std::borrow::Cow;
 
 use crate::api_data::errors::ApiError;
 use anyhow::anyhow;
-use reqwest::Client;
 use reqwest::header::AUTHORIZATION;
+use reqwest::{Client, Url};
 use serde::de::DeserializeOwned;
 use serde_json::Value;
 
@@ -25,7 +25,11 @@ impl<'a> LegacyApi<'a> {
         'b: 'a,
     {
         let client = Client::builder()
-            .user_agent("")
+            .user_agent(concat!(
+                env!("CARGO_PKG_NAME"),
+                "/",
+                env!("CARGO_PKG_VERSION")
+            ))
             .https_only(true)
             .build()
             .unwrap();
@@ -45,7 +49,7 @@ impl<'a> LegacyApi<'a> {
         no_auth: bool,
         extra_params: Option<Vec<(&str, String)>>,
     ) -> anyhow::Result<T> {
-        let base_url = format!("{}{}", LEGACY_BASE_URL, endpoint);
+        let base_url = Url::parse(LEGACY_BASE_URL)?;
 
         let mut params: Vec<(String, String)> = vec![];
 
@@ -55,7 +59,10 @@ impl<'a> LegacyApi<'a> {
             }
         }
 
-        let mut request_builder = self.client.get(&base_url).query(&params);
+        let mut request_builder = self
+            .client
+            .get(&base_url.join(endpoint)?.to_string())
+            .query(&params);
 
         if !no_auth {
             // 直接使用已经包含 Bearer 前缀的 token

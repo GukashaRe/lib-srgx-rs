@@ -41,7 +41,7 @@ impl ReviewResponse {
     /// ```
     pub fn filter_unique_users(mut self) -> Self {
         let mut user_map: HashMap<i64, ReviewItem> = HashMap::new();
-        
+
         for item in self.data {
             user_map
                 .entry(item.user_id)
@@ -53,7 +53,7 @@ impl ReviewResponse {
                 })
                 .or_insert(item);
         }
-        
+
         // 将去重后的数据重新赋值，并保持原有的分页信息不变
         self.data = user_map.into_values().collect();
         self.total = self.data.len() as i64;
@@ -63,7 +63,7 @@ impl ReviewResponse {
         }
         self
     }
-    
+
     /// 获取某个用户的所有评论
     ///
     /// # 示例
@@ -77,7 +77,7 @@ impl ReviewResponse {
             .filter(|item| item.user_id == user_id)
             .collect()
     }
-    
+
     /// 获取所有唯一的用户 ID 列表
     pub fn unique_user_ids(&self) -> Vec<i64> {
         let mut ids: Vec<i64> = self.data.iter().map(|item| item.user_id).collect();
@@ -189,7 +189,7 @@ pub struct Rating {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_reply_deserde() {
         let json = r#"{
@@ -567,19 +567,19 @@ mod tests {
         }
     ]
 }"#;
-        
+
         let resp: ReviewResponse = serde_json::from_str(json).unwrap();
-        
+
         // 测试原始数据：10 条
         assert_eq!(resp.data.len(), 10);
-        
+
         // 测试过滤重复用户
         let filtered = resp.filter_unique_users();
-        
+
         // user_id: 3275 有 3 条，去重后保留 1 条，减少 2 条
         // 所以 10 - 2 = 8
-        assert_eq!(filtered.data.len(), 8);  // ✅ 改为 8
-        
+        assert_eq!(filtered.data.len(), 8); // ✅ 改为 8
+
         // 验证去重后 user_id 3275 只保留最新的一条
         let user_3275: Vec<&ReviewItem> = filtered
             .data
@@ -588,18 +588,18 @@ mod tests {
             .collect();
         assert_eq!(user_3275.len(), 1);
         assert_eq!(user_3275[0].id, 2114); // 最新的评论 id 是 2114
-        
+
         // 测试获取用户评论
         let comments = filtered.get_user_comments(3275);
         assert_eq!(comments.len(), 1);
-        
+
         // 测试唯一用户 ID 列表
         let unique_ids = filtered.unique_user_ids();
         assert_eq!(unique_ids.len(), 8);
         assert!(unique_ids.contains(&3275));
         assert!(unique_ids.contains(&8655));
         assert!(unique_ids.contains(&14318));
-        
+
         // 测试原始数据不受影响（因为 filter_unique_users 消耗了 self）
         let resp2: ReviewResponse = serde_json::from_str(json).unwrap();
         assert_eq!(resp2.data.len(), 10);

@@ -21,7 +21,11 @@ pub struct SrgxImpl {
 impl SrgxImpl {
     pub fn new(api_token: String, code: String) -> Self {
         let client = Client::builder()
-            .user_agent("Gukasha-lib-srgx-rs/beta")
+            .user_agent(concat!(
+                env!("CARGO_PKG_NAME"),
+                "/",
+                env!("CARGO_PKG_VERSION")
+            ))
             .https_only(true)
             .build()
             .unwrap();
