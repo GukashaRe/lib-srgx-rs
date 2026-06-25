@@ -12,7 +12,7 @@ use std::time::Duration;
 
 use crate::api_data::errors::ApiError;
 use crate::legacy_api::school_comments::Root;
-use crate::legacy_api::school_list::SchoolSearchResponse;
+use crate::legacy_api::school_list::{SchoolCache, SchoolSearchResponse};
 use anyhow::Result;
 use anyhow::anyhow;
 use reqwest::header::AUTHORIZATION;
@@ -177,6 +177,18 @@ impl<'a> LegacyApi<'a> {
             ("pageSize", page_size.to_string()),
         ];
         self.fetch(endpoint, false, Some(params)).await
+    }
+
+    pub async fn init_school_cache(&self) -> Result<SchoolCache, anyhow::Error> {
+        SchoolCache::load_or_fetch(self, None).await
+    }
+
+    /// 初始化学校缓存（自定义缓存路径）
+    pub async fn init_school_cache_with_path(
+        &self,
+        cache_path: std::path::PathBuf,
+    ) -> Result<SchoolCache, anyhow::Error> {
+        SchoolCache::load_or_fetch(self, Some(cache_path)).await
     }
 }
 
