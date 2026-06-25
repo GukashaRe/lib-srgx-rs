@@ -5,12 +5,14 @@
 
 pub mod reply;
 pub mod school_comments;
+pub mod school_list;
 
 use std::borrow::Cow;
 use std::time::Duration;
 
 use crate::api_data::errors::ApiError;
 use crate::legacy_api::school_comments::Root;
+use crate::legacy_api::school_list::SchoolSearchResponse;
 use anyhow::Result;
 use anyhow::anyhow;
 use reqwest::header::AUTHORIZATION;
@@ -142,6 +144,39 @@ impl<'a> LegacyApi<'a> {
             self.fetch(&endpoint, false, Some(extra_params)).await?;
 
         Ok(resp)
+    }
+
+    /// 搜索学校
+    ///
+    /// # 参数
+    /// - `keyword`: 搜索关键词（学校名/专业/城市）
+    /// - `page`: 页码（从 1 开始）
+    /// - `page_size`: 每页大小
+    ///
+    /// # 示例
+    /// ```no_run
+    /// # async fn example() -> anyhow::Result<()> {
+    /// let api = LegacyApi::new("your_token");
+    /// let result = api.search_schools("清华大学", 1, 10).await?;
+    /// for school in result.data {
+    ///     println!("{} (ID: {})", school.name, school.id);
+    /// }
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub async fn search_schools(
+        &self,
+        keyword: &str,
+        page: i64,
+        page_size: i64,
+    ) -> Result<SchoolSearchResponse> {
+        let endpoint = "/api/schools";
+        let params = vec![
+            ("keyword", keyword.to_string()),
+            ("page", page.to_string()),
+            ("pageSize", page_size.to_string()),
+        ];
+        self.fetch(endpoint, false, Some(params)).await
     }
 }
 
