@@ -1,6 +1,6 @@
 // src/legacy_api/school_comments.rs
 
-use serde::{Deserialize, Deserializer, Serialize};
+use serde::{Deserialize, Serialize};
 
 // ... 已有的结构体 ...
 
