@@ -10,7 +10,8 @@ pub struct SchoolSearchResponse {
     pub data: Vec<School>,
     pub total: i64,
     pub page: i64,
-    pub pageSize: i64,
+    #[serde(rename = "pageSize")]
+    pub page_size: i64,
 }
 
 /// 学校信息
