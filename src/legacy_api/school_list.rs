@@ -3,7 +3,10 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
+use std::io::Write;
 use std::path::PathBuf;
+use std::time::Duration;
+use tokio::time::sleep;
 
 /// 学校搜索结果响应
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -100,10 +103,16 @@ impl SchoolCache {
     ) -> Result<Self, anyhow::Error> {
         let mut all_schools = Vec::new();
         let mut page = 1;
-        let page_size = 100;
+        let page_size = 100_usize;
+        let mut fetch_data_len = 0;
 
         loop {
-            let resp: SchoolSearchResponse = api.search_schools("", page, page_size).await?;
+            print!(
+                "\r当前正在拉取第 {} 页，已拉取 {} 条数据\n",
+                page, fetch_data_len
+            );
+            std::io::stdout().flush()?;
+            let resp: SchoolSearchResponse = api.search_schools("", page, page_size as i64).await?;
 
             if resp.data.is_empty() {
                 break;
@@ -112,11 +121,12 @@ impl SchoolCache {
             let data_len = resp.data.len();
             all_schools.extend(resp.data);
 
-            if data_len < page_size as usize {
+            if data_len < page_size {
                 break;
             }
-
             page += 1;
+            fetch_data_len += data_len;
+            sleep(Duration::from_millis(275)).await;
         }
 
         Ok(Self::from_schools(all_schools))
