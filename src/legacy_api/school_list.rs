@@ -108,7 +108,7 @@ impl SchoolCache {
 
         loop {
             print!(
-                "\r当前正在拉取第 {} 页，已拉取 {} 条数据\n",
+                "\r当前正在拉取第 {} 页，已拉取 {} 条数据",
                 page, fetch_data_len
             );
             std::io::stdout().flush()?;
